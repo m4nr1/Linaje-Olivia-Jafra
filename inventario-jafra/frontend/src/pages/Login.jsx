@@ -1,24 +1,27 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { loginUser } from '../services/authService';
 
 const Login = () => {
-  // 1. Inicializamos la "memoria" de Nuestro Formulario
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [errorMsg, setErrorMsg] = useState('');
+  const navigate = useNavigate(); 
 
-  // 2. Esta Función Intercepta cada Tecla Presionada y Actualiza el Estado
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 3. Esta Función se Ejecuta al Darle Clic al Botón "Entrar"
-  const handleSubmit = (e) => {
-    e.preventDefault(); 
-    console.log('🟢 Datos Listos para Enviar al Backend:', formData);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg(''); 
+
+    try {
+      await loginUser(formData);
+      navigate('/inventory'); 
+    } catch (error) {
+      console.error('Error de acceso:', error);
+      setErrorMsg(error);
+    }
   };
 
   return (
@@ -29,6 +32,9 @@ const Login = () => {
       >
         <h2 style={{ textAlign: 'center', color: '#333' }}>Linaje Olivia Jafra</h2>
         <h4 style={{ textAlign: 'center', color: '#666', marginTop: '-10px' }}>Control de Inventario</h4>
+        
+        {/* Renderizado condicional: Solo aparece si hay un error */}
+        {errorMsg && <div style={{ color: '#d81b60', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{errorMsg}</div>}
         
         <input
           type="email"
