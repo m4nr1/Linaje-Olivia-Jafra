@@ -13,6 +13,15 @@ app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
+// Ruta ligera de monitoreo para mantener despierta la instancia en Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'linaje-olivia-api',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Rutas de la API
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/auth', require('./routes/authRoutes')); 
