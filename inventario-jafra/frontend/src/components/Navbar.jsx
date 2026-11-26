@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoBlanco from '../assets/logo-blanco.svg';
 import { IconUser, IconSettings, IconLogout } from './Icons';
+import { clearAuthSession } from '../services/authService';
 
 const Navbar = ({ sectionTitle = 'Inicio' }) => {
   const navigate = useNavigate();
@@ -22,10 +23,9 @@ const Navbar = ({ sectionTitle = 'Inicio' }) => {
   }, []);
 
   const confirmLogout = () => {
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('userInfo');
-    navigate('/login');
-  };
+  clearAuthSession();
+  navigate('/login', { replace: true });
+};
 
   const initials = (userInfo.name || 'JM')
     .split(' ')

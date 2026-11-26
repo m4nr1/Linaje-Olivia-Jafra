@@ -2,12 +2,51 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL + '/auth';
 
-export const loginUser = async (credentials) => {
+export const saveAuthSession = (data, remember = true) => {
+  if (!data?.token) return;
+
+  localStorage.setItem('userToken', data.token);
+  localStorage.setItem('userInfo', JSON.stringify(data));
+
+  if (remember) {
+    localStorage.setItem('rememberSession', 'true');
+    if (data.email) localStorage.setItem('rememberedEmail', data.email);
+    sessionStorage.removeItem('tempSessionActive');
+  } else {
+    localStorage.removeItem('rememberSession');
+    localStorage.removeItem('rememberedEmail');
+    sessionStorage.setItem('tempSessionActive', 'true');
+  }
+};
+
+export const clearAuthSession = () => {
+  localStorage.removeItem('userToken');
+  localStorage.removeItem('userInfo');
+  localStorage.removeItem('rememberSession');
+  sessionStorage.removeItem('tempSessionActive');
+};
+
+export const isAuthenticated = () => {
+  const token = localStorage.getItem('userToken');
+  if (!token) return false;
+
+  const isPersistent = localStorage.getItem('rememberSession') === 'true';
+  const isTempTabActive = sessionStorage.getItem('tempSessionActive') === 'true';
+
+  // Si la sesión no era persistente y se cerró la pestaña/navegador, limpia la sesión
+  if (!isPersistent && !isTempTabActive) {
+    clearAuthSession();
+    return false;
+  }
+
+  return true;
+};
+
+export const loginUser = async (credentials, remember = true) => {
   try {
     const response = await axios.post(`${API_URL}/login`, credentials);
     if (response.data.token) {
-      localStorage.setItem('userToken', response.data.token);
-      localStorage.setItem('userInfo', JSON.stringify(response.data));
+      saveAuthSession(response.data, remember);
     }
     return response.data;
   } catch (error) {
@@ -24,8 +63,8 @@ export const updateProfile = async (profileData) => {
       },
     });
     if (response.data.token) {
-      localStorage.setItem('userToken', response.data.token);
-      localStorage.setItem('userInfo', JSON.stringify(response.data));
+      const keepRemember = localStorage.getItem('rememberSession') === 'true';
+      saveAuthSession(response.data, keepRemember);
     }
     return response.data;
   } catch (error) {

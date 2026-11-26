@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/authService';
+import { loginUser, saveAuthSession } from '../services/authService';
 import logoVerde from '../assets/logo-verde.svg';
 import { IconCheck } from '../components/Icons';
 import axios from 'axios';
@@ -23,13 +23,13 @@ const EyeOffIcon = () => (
 
 const Login = () => {
   const [view, setView] = useState('login');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     name: '',
-    email: '',
+    email: localStorage.getItem('rememberedEmail') || '',
     password: '',
     confirmPassword: '',
     remember: true,
-  });
+  }));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -67,8 +67,11 @@ const Login = () => {
 
     setLoading(true);
     try {
-      await loginUser({ email: formData.email.trim(), password: formData.password });
-      navigate('/inventory');
+      await loginUser(
+        { email: formData.email.trim(), password: formData.password },
+        formData.remember
+      );
+      navigate('/inventory', { replace: true });
     } catch (error) {
       setErrorMsg(typeof error === 'string' ? error : 'Credenciales incorrectas.');
     } finally {
@@ -104,9 +107,8 @@ const Login = () => {
         password: formData.password,
       });
       if (res.data?.token) {
-        localStorage.setItem('userToken', res.data.token);
-        localStorage.setItem('userInfo', JSON.stringify(res.data));
-        navigate('/inventory');
+        saveAuthSession(res.data, true);
+        navigate('/inventory', { replace: true });
       } else {
         switchView('login');
       }
