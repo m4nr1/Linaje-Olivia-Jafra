@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const User = require('../models/user');
 
 const generateToken = (id) => {
@@ -84,6 +83,10 @@ exports.forgotPassword = async (req, res) => {
       return res.status(404).json({ message: 'No existe una cuenta registrada con ese correo electrónico' });
     }
 
+    if (!process.env.BREVO_API_KEY || !process.env.EMAIL_USER) {
+      throw new Error('Faltan las variables BREVO_API_KEY o EMAIL_USER en el servidor');
+    }
+
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // Expira en 15 minutos
@@ -91,20 +94,6 @@ exports.forgotPassword = async (req, res) => {
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
 
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; background-color: #FAF9F6; padding: 32px 16px; color: #111A10;">
@@ -132,12 +121,28 @@ exports.forgotPassword = async (req, res) => {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: `"Linaje Olivia - Inventarios" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: 'Recuperación de Contraseña - Linaje Olivia',
-      html: htmlMessage,
+    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: {
+          name: 'Linaje Olivia - Inventarios',
+          email: process.env.EMAIL_USER,
+        },
+        to: [{ email: user.email, name: user.name }],
+        subject: 'Recuperación de Contraseña - Linaje Olivia',
+        htmlContent: htmlMessage,
+      }),
     });
+
+    if (!brevoResponse.ok) {
+      const errData = await brevoResponse.json().catch(() => ({}));
+      throw new Error(errData.message || `Error HTTP ${brevoResponse.status} al enviar correo con Brevo`);
+    }
 
     res.json({ message: 'Correo de recuperación enviado exitosamente' });
   } catch (error) {

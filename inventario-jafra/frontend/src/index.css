@@ -1161,6 +1161,13 @@ h1, h2, h3, h4, h5, h6,
     display: flex;
     flex-direction: column;
     gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .lo-m-card.expanded {
+    border-color: var(--brand-1);
+    box-shadow: 0 6px 18px rgba(17, 26, 16, 0.09);
   }
 
   .lo-m-card-row-top {
@@ -1216,23 +1223,72 @@ h1, h2, h3, h4, h5, h6,
     color: var(--gray-1);
   }
 
-  .lo-m-card-row-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 12px;
-    margin-top: 4px;
-  }
-
   .lo-m-desc {
     font-size: 13px;
     color: var(--text-secondary);
-    line-height: 1.4;
+    line-height: 1.45;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .lo-m-desc.expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    overflow: visible;
+  }
+
+  .lo-m-extra-details {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background-color: var(--bg-cream);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    animation: cardFadeUp 0.18s ease forwards;
+  }
+
+  .lo-m-extra-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lo-m-extra-row strong {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  .lo-m-card-row-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .lo-m-expand-btn {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--brand-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .lo-m-empty-card {

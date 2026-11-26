@@ -25,6 +25,13 @@ const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Tarjetas expandidas en vista móvil
+  const [expandedCards, setExpandedCards] = useState({});
+
+  const toggleCardExpand = (id) => {
+    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   // Buscador y Filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -291,9 +298,31 @@ const Inventory = () => {
   const getStockStyle = (stock) => {
     const st = Number(stock) || 0;
     const threshold = Number(settings.lowStockThreshold) || 10;
-    if (st === 0) return { color: 'var(--status-danger)', bg: 'var(--status-danger-bg)', label: '0 Agotado' };
-    if (st <= threshold) return { color: 'var(--status-warning)', bg: 'var(--status-warning-bg)', label: `${st} en stock` };
-    return { color: 'var(--status-success)', bg: 'var(--status-success-bg)', label: `${st} en stock` };
+    if (st === 0) {
+      return {
+        color: 'var(--status-danger)',
+        textColor: 'var(--status-danger)',
+        bg: 'var(--status-danger-bg)',
+        border: 'var(--status-danger)',
+        label: '0 Agotado',
+      };
+    }
+    if (st <= threshold) {
+      return {
+        color: 'var(--status-warning)',
+        textColor: '#a87522',
+        bg: 'var(--status-warning-bg)',
+        border: 'var(--status-warning)',
+        label: `${st} en stock · Bajo`,
+      };
+    }
+    return {
+      color: 'var(--status-success)',
+      textColor: 'var(--status-success)',
+      bg: 'var(--status-success-bg)',
+      border: 'var(--status-success)',
+      label: `${st} en stock`,
+    };
   };
 
   return (
@@ -375,15 +404,15 @@ const Inventory = () => {
                       { id: 'low', label: 'Stock Bajo', cls: 'pill-low' },
                       { id: 'out', label: 'Agotado', cls: 'pill-out' },
                     ].map((opt) => (
-                    <button
-                    key={opt.id}
-                    type="button"
-                    className={`lo-pill ${opt.cls} ${stockFilter === opt.id ? 'active' : ''}`}
-                    onClick={() => setStockFilter(opt.id)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className={`lo-pill ${opt.cls} ${stockFilter === opt.id ? 'active' : ''}`}
+                        onClick={() => setStockFilter(opt.id)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -518,17 +547,24 @@ const Inventory = () => {
               ) : (
                 filteredProducts.map((product) => {
                   const stInfo = getStockStyle(product.stock);
-                  const isOut = Number(product.stock) === 0;
+                  const isExpanded = !!expandedCards[product._id];
+                  const totalValue = (Number(product.stock) || 0) * (Number(product.price) || 0);
+
                   return (
-                    <article key={product._id} className="lo-m-card">
-                      {/* Fila superior: SKU a la izquierda y Badge de stock a la derecha */}
+                    <article
+                      key={product._id}
+                      className={`lo-m-card ${isExpanded ? 'expanded' : ''}`}
+                      onClick={() => toggleCardExpand(product._id)}
+                    >
+                      {/* Fila superior: SKU a la izquierda y Badge de stock semántico a la derecha */}
                       <div className="lo-m-card-row-top">
                         <span className="lo-m-sku">{product.sku}</span>
                         <span
                           className="lo-m-badge"
                           style={{
-                            backgroundColor: isOut ? 'var(--status-danger)' : 'var(--brand-3)',
-                            color: isOut ? '#FFFFFF' : 'var(--status-success)',
+                            backgroundColor: stInfo.bg,
+                            color: stInfo.textColor,
+                            border: `1px solid ${stInfo.border}`,
                           }}
                         >
                           {stInfo.label}
@@ -537,22 +573,64 @@ const Inventory = () => {
 
                       {/* Fila media: Nombre del producto a la izquierda y Precio a la derecha */}
                       <div className="lo-m-card-row-mid">
-                        <h3 className="lo-m-title">{product.name}</h3>
+                        <h3 className={`lo-m-title ${isExpanded ? 'expanded' : ''}`}>{product.name}</h3>
                         <strong className="lo-m-price">
                           {currencySymbol}
                           {Number(product.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                         </strong>
                       </div>
 
-                      {/* Píldora de categoría en crema #EFE5D0 */}
+                      {/* Píldora de categoría */}
                       <span className="lo-m-cat-pill">{product.category}</span>
 
-                      {/* Fila inferior: Descripción truncada a la izquierda y botones Editar / Eliminar a la derecha */}
+                      {/* Descripción truncada o completa según estado */}
+                      <p className={`lo-m-desc ${isExpanded ? 'expanded' : ''}`}>
+                        {product.description || 'Sin descripción registrada.'}
+                      </p>
+
+                      {/* Detalle extra desplegable al expandir la tarjeta */}
+                      {isExpanded && (
+                        <div className="lo-m-extra-details">
+                          <div className="lo-m-extra-row">
+                            <span>Valor total en stock:</span>
+                            <strong>
+                              {currencySymbol}
+                              {totalValue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </strong>
+                          </div>
+                          {(product.updatedAt || product.createdAt) && (
+                            <div className="lo-m-extra-row">
+                              <span>Última actualización:</span>
+                              <span>
+                                {new Date(product.updatedAt || product.createdAt).toLocaleDateString('es-MX', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Fila inferior: Botón desplegar info a la izquierda y Editar / Eliminar a la derecha */}
                       <div className="lo-m-card-row-bottom">
-                        <p className="lo-m-desc">
-                          {product.description || 'Sin descripción registrada.'}
-                        </p>
-                        <div className="lo-action-btns" style={{ flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="lo-m-expand-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCardExpand(product._id);
+                          }}
+                        >
+                          {isExpanded ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
+                        </button>
+
+                        <div
+                          className="lo-action-btns"
+                          style={{ flexShrink: 0 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             type="button"
                             className="lo-icon-btn edit"
