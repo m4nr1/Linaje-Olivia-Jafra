@@ -1,3 +1,79 @@
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const User = require('../models/user');
+
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
+
+const formatUserResponse = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone || '1234567890',
+  company: user.company || 'Empresa',
+  position: user.position || 'Puesto',
+  role: user.role || 'Administrador',
+  avatar: user.avatar || '',
+  token: generateToken(user._id),
+});
+
+exports.registerUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'El correo ya está registrado' });
+    }
+    const user = await User.create({ name, email, password });
+    res.status(201).json(formatUserResponse(user));
+  } catch (error) {
+    res.status(500).json({ message: 'Error al registrar usuario', error: error.message });
+  }
+};
+
+exports.loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (user && (await user.matchPassword(password))) {
+      res.json(formatUserResponse(user));
+    } else {
+      res.status(401).json({ message: 'Correo o contraseña incorrectos' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error al iniciar sesión', error: error.message });
+  }
+};
+
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    user.name = req.body.name ?? user.name;
+    user.email = req.body.email ?? user.email;
+    user.phone = req.body.phone ?? user.phone;
+    user.company = req.body.company ?? user.company;
+    user.position = req.body.position ?? user.position;
+    if (req.body.avatar !== undefined) {
+      user.avatar = req.body.avatar;
+    }
+    if (req.body.password && req.body.password.trim().length >= 6) {
+      user.password = req.body.password.trim();
+    }
+
+    const updatedUser = await user.save();
+    res.json(formatUserResponse(updatedUser));
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar perfil', error: error.message });
+  }
+};
+
 exports.forgotPassword = async (req, res) => {
   let user;
   try {
@@ -71,5 +147,34 @@ exports.forgotPassword = async (req, res) => {
       await user.save({ validateBeforeSave: false }).catch(() => {});
     }
     res.status(500).json({ message: 'Error al enviar el correo de recuperación', error: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'El enlace de recuperación es inválido o ya expiró' });
+    }
+
+    const { password } = req.body;
+    if (!password || password.trim().length < 6) {
+      return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    user.password = password.trim();
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.json({ message: 'Contraseña restablecida exitosamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al restablecer la contraseña', error: error.message });
   }
 };
