@@ -1,68 +1,391 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/authService';
+import logoVerde from '../assets/logo-verde.svg';
+import { IconCheck } from '../components/Icons';
+import axios from 'axios';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [view, setView] = useState('login');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    remember: true,
+  });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [errorMsg, setErrorMsg] = useState('');
-  const navigate = useNavigate(); 
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const switchView = (nextView) => {
+    setErrorMsg('');
+    setFieldErrors({});
+    setView(nextView);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg(''); 
-
-    try {
-      await loginUser(formData);
-      navigate('/inventory'); 
-    } catch (error) {
-      console.error('Error de acceso:', error);
-      setErrorMsg(error);
+  const handleChange = (e) => {
+    const { name, type, checked, value } = e.target;
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    if (fieldErrors[name]) {
+      setFieldErrors({ ...fieldErrors, [name]: '' });
     }
   };
 
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    const errs = {};
+    if (!formData.email.trim()) errs.email = '¡Ingrese un correo electrónico!';
+    if (!formData.password.trim()) errs.password = '¡Ingrese una contraseña!';
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loginUser({ email: formData.email.trim(), password: formData.password });
+      navigate('/inventory');
+    } catch (error) {
+      setErrorMsg(typeof error === 'string' ? error : 'Credenciales incorrectas.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    const errs = {};
+    if (!formData.name.trim()) errs.name = '¡Ingrese un nombre!';
+    if (!formData.email.trim()) errs.email = '¡Ingrese un correo electrónico!';
+    if (!formData.password.trim()) errs.password = '¡Ingrese una contraseña!';
+    if (!formData.confirmPassword.trim()) {
+      errs.confirmPassword = '¡Repita la contraseña!';
+    } else if (formData.password !== formData.confirmPassword) {
+      errs.confirmPassword = '¡Las contraseñas no coinciden!';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL + '/auth';
+      const res = await axios.post(`${baseUrl}/register`, {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+      if (res.data?.token) {
+        localStorage.setItem('userToken', res.data.token);
+        localStorage.setItem('userInfo', JSON.stringify(res.data));
+        navigate('/inventory');
+      } else {
+        switchView('login');
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Error al registrar la cuenta.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendRecoveryEmail = async (nextSuccessView) => {
+    setErrorMsg('');
+    if (!formData.email.trim()) {
+      setFieldErrors({ email: '¡Ingrese un correo electrónico!' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL + '/auth';
+      await axios.post(`${baseUrl}/forgot-password`, {
+        email: formData.email.trim(),
+      });
+      switchView(nextSuccessView);
+    } catch (err) {
+      setErrorMsg(
+        err.response?.data?.message || 'No se pudo enviar el correo de recuperación.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = (e) => {
+    e.preventDefault();
+    sendRecoveryEmail('forgotSent');
+  };
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f9f9f9' }}>
-      <form 
-        onSubmit={handleSubmit} 
-        style={{ display: 'flex', flexDirection: 'column', width: '320px', gap: '15px', padding: '30px', backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
-      >
-        <h2 style={{ textAlign: 'center', color: '#333' }}>Linaje Olivia Jafra</h2>
-        <h4 style={{ textAlign: 'center', color: '#666', marginTop: '-10px' }}>Control de Inventario</h4>
-        
-        {/* Renderizado condicional: Solo aparece si hay un error */}
-        {errorMsg && <div style={{ color: '#d81b60', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{errorMsg}</div>}
-        
-        <input
-          type="email"
-          name="email"
-          placeholder="Correo electrónico"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
+    <div className="lo-auth-page">
+      <div className="lo-auth-brand">
+        <img
+          src={logoVerde}
+          alt="Linaje Olivia"
+          style={{ height: '66px', width: 'auto', objectFit: 'contain' }}
         />
-        
-        <input
-          type="password"
-          name="password"
-          placeholder="Contraseña"
-          value={formData.password}
-          onChange={handleChange}
-          required
-          style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
-        />
-        
-        <button 
-          type="submit" 
-          style={{ padding: '12px', backgroundColor: '#d81b60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-        >
-          Iniciar Sesión
-        </button>
-      </form>
+      </div>
+
+      {view === 'login' && (
+        <form className="lo-auth-card" onSubmit={handleLoginSubmit} noValidate>
+          <h1 className="lo-auth-title">Iniciar Sesión</h1>
+          <p className="lo-auth-subtitle">Sistema de Gestión de Inventarios</p>
+
+          {errorMsg && (
+            <div className="lo-error-text" style={{ justifyContent: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="lo-field">
+            <label className="lo-label">Correo Electrónico</label>
+            <input
+              className={`lo-input ${fieldErrors.email ? 'error' : ''}`}
+              type="email"
+              name="email"
+              placeholder="correo@ejemplo.com"
+              value={formData.email}
+              onChange={handleChange}
+            />
+            {fieldErrors.email && <span className="lo-error-text">{fieldErrors.email}</span>}
+          </div>
+
+          <div className="lo-field">
+            <label className="lo-label">Contraseña</label>
+            <input
+              className={`lo-input ${fieldErrors.password ? 'error' : ''}`}
+              type="password"
+              name="password"
+              placeholder="Ingrese una contraseña"
+              value={formData.password}
+              onChange={handleChange}
+            />
+            {fieldErrors.password && <span className="lo-error-text">{fieldErrors.password}</span>}
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              name="remember"
+              checked={formData.remember}
+              onChange={handleChange}
+              style={{ accentColor: '#1E2A1B', width: '16px', height: '16px' }}
+            />
+            Recordarme
+          </label>
+
+          <button type="submit" className="lo-btn lo-btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {loading ? 'Ingresando...' : 'Iniciar Sesión'}
+          </button>
+
+          <div className="lo-auth-links">
+            <button type="button" className="lo-link-btn" onClick={() => switchView('forgot')}>
+              ¿Olvidaste tu contraseña?
+            </button>
+            <span>
+              ¿No tienes cuenta?{' '}
+              <button type="button" className="lo-link-btn" onClick={() => switchView('register')}>
+                Regístrate
+              </button>
+            </span>
+          </div>
+        </form>
+      )}
+
+      {view === 'register' && (
+        <form className="lo-auth-card" onSubmit={handleRegisterSubmit} noValidate>
+          <h1 className="lo-auth-title">Registrarse</h1>
+          <p className="lo-auth-subtitle">Sistema de Gestión de Inventarios</p>
+
+          {errorMsg && (
+            <div className="lo-error-text" style={{ justifyContent: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="lo-field">
+            <label className="lo-label">Nombre completo</label>
+            <input
+              className={`lo-input ${fieldErrors.name ? 'error' : ''}`}
+              type="text"
+              name="name"
+              placeholder="Ingrese un nombre"
+              value={formData.name}
+              onChange={handleChange}
+            />
+            {fieldErrors.name && <span className="lo-error-text">{fieldErrors.name}</span>}
+          </div>
+
+          <div className="lo-field">
+            <label className="lo-label">Correo electrónico</label>
+            <input
+              className={`lo-input ${fieldErrors.email ? 'error' : ''}`}
+              type="email"
+              name="email"
+              placeholder="correo@ejemplo.com"
+              value={formData.email}
+              onChange={handleChange}
+            />
+            {fieldErrors.email && <span className="lo-error-text">{fieldErrors.email}</span>}
+          </div>
+
+          <div className="lo-field">
+            <label className="lo-label">Contraseña</label>
+            <input
+              className={`lo-input ${fieldErrors.password ? 'error' : ''}`}
+              type="password"
+              name="password"
+              placeholder="Ingrese una contraseña"
+              value={formData.password}
+              onChange={handleChange}
+            />
+            {fieldErrors.password && <span className="lo-error-text">{fieldErrors.password}</span>}
+          </div>
+
+          <div className="lo-field">
+            <label className="lo-label">Confirmar contraseña</label>
+            <input
+              className={`lo-input ${fieldErrors.confirmPassword ? 'error' : ''}`}
+              type="password"
+              name="confirmPassword"
+              placeholder="Repita la contraseña"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+            />
+            {fieldErrors.confirmPassword && <span className="lo-error-text">{fieldErrors.confirmPassword}</span>}
+          </div>
+
+          <button type="submit" className="lo-btn lo-btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {loading ? 'Registrando...' : 'Crear Cuenta'}
+          </button>
+
+          <div className="lo-auth-links">
+            <span>
+              ¿Ya tienes una cuenta?{' '}
+              <button type="button" className="lo-link-btn" onClick={() => switchView('login')}>
+                Inicia Sesión
+              </button>
+            </span>
+          </div>
+        </form>
+      )}
+
+      {view === 'forgot' && (
+        <form className="lo-auth-card" onSubmit={handleForgotSubmit} noValidate>
+          <h1 className="lo-auth-title" style={{ fontSize: '24px' }}>Recuperar Contraseña</h1>
+          <p className="lo-auth-subtitle">
+            Ingresa tu correo electrónico registrado y te enviaremos un enlace para restablecer tu acceso.
+          </p>
+
+          {errorMsg && (
+            <div className="lo-error-text" style={{ justifyContent: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="lo-field">
+            <label className="lo-label">Correo electrónico</label>
+            <input
+              className={`lo-input ${fieldErrors.email ? 'error' : ''}`}
+              type="email"
+              name="email"
+              placeholder="correo@ejemplo.com"
+              value={formData.email}
+              onChange={handleChange}
+            />
+            {fieldErrors.email && <span className="lo-error-text">{fieldErrors.email}</span>}
+          </div>
+
+          <button type="submit" className="lo-btn lo-btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {loading ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
+          </button>
+
+          <div className="lo-auth-links">
+            <button type="button" className="lo-link-btn" onClick={() => switchView('login')}>
+              ← Volver a Iniciar Sesión
+            </button>
+          </div>
+        </form>
+      )}
+
+      {view === 'forgotSent' && (
+        <div className="lo-auth-card" style={{ textAlign: 'center' }}>
+          <h1 className="lo-auth-title" style={{ fontSize: '26px' }}>Recuperar Contraseña</h1>
+          <p className="lo-auth-subtitle">Sistema de Gestión de Inventarios</p>
+
+          {errorMsg && (
+            <div className="lo-error-text" style={{ justifyContent: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '8px 0' }}>
+            Revisa tu correo electrónico, incluida la carpeta de spam, para recuperar tu cuenta mediante el enlace de recuperación de contraseña
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+            <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+              ¿No te aparece?
+            </span>
+            <button
+              type="button"
+              className="lo-btn lo-btn-primary"
+              style={{ width: '100%' }}
+              disabled={loading}
+              onClick={() => sendRecoveryEmail('forgotResent')}
+            >
+              {loading ? 'Reenviando...' : 'Reenviar Enlace de Recuperación'}
+            </button>
+          </div>
+
+          <div className="lo-auth-links">
+            <button type="button" className="lo-link-btn" onClick={() => switchView('login')}>
+              ← Volver a Iniciar Sesión
+            </button>
+          </div>
+        </div>
+      )}
+
+      {view === 'forgotResent' && (
+        <div className="lo-auth-card" style={{ textAlign: 'center' }}>
+          <h1 className="lo-auth-title" style={{ fontSize: '26px' }}>Recuperar Contraseña</h1>
+          <p className="lo-auth-subtitle">Sistema de Gestión de Inventarios</p>
+
+          <div className="lo-alert-icon success" style={{ margin: '6px auto 2px' }}>
+            <IconCheck />
+          </div>
+
+          <h2 style={{ fontSize: '21px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            ¡Reenviado Exitosamente!
+          </h2>
+
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Revisa tu correo electrónico, incluida la carpeta de spam, para recuperar tu cuenta mediante el enlace de recuperación de contraseña
+          </p>
+
+          <button
+            type="button"
+            className="lo-btn lo-btn-primary"
+            style={{ width: '100%', marginTop: '6px' }}
+            onClick={() => switchView('login')}
+          >
+            ← Volver a Iniciar Sesión
+          </button>
+        </div>
+      )}
+
+      <footer className="lo-footer">
+        Linaje Olivia, JAFRA COSMETICS S.A. DE C.V. © 2026 - Todos los Derechos Reservados
+      </footer>
     </div>
   );
 };
