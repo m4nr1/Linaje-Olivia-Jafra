@@ -4,12 +4,30 @@ import axios from 'axios';
 import logoVerde from '../assets/logo-verde.svg';
 import { IconCheck } from '../components/Icons';
 
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
+
 const ResetPassword = () => {
   const { token } = useParams();
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,31 +85,53 @@ const ResetPassword = () => {
 
           <div className="lo-field">
             <label className="lo-label">Nueva contraseña</label>
-            <input
-              className={`lo-input ${fieldErrors.password ? 'error' : ''}`}
-              type="password"
-              placeholder="Ingrese una contraseña"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: '' });
-              }}
-            />
+            <div className="lo-password-wrapper">
+              <input
+                className={`lo-input ${fieldErrors.password ? 'error' : ''}`}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Ingrese una contraseña"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: '' });
+                }}
+              />
+              <button
+                type="button"
+                className="lo-eye-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
             {fieldErrors.password && <span className="lo-error-text">{fieldErrors.password}</span>}
           </div>
 
           <div className="lo-field">
             <label className="lo-label">Confirmar contraseña</label>
-            <input
-              className={`lo-input ${fieldErrors.confirmPassword ? 'error' : ''}`}
-              type="password"
-              placeholder="Repita la contraseña"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                if (fieldErrors.confirmPassword) setFieldErrors({ ...fieldErrors, confirmPassword: '' });
-              }}
-            />
+            <div className="lo-password-wrapper">
+              <input
+                className={`lo-input ${fieldErrors.confirmPassword ? 'error' : ''}`}
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Repita la contraseña"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (fieldErrors.confirmPassword) setFieldErrors({ ...fieldErrors, confirmPassword: '' });
+                }}
+              />
+              <button
+                type="button"
+                className="lo-eye-btn"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
             {fieldErrors.confirmPassword && <span className="lo-error-text">{fieldErrors.confirmPassword}</span>}
           </div>
 
